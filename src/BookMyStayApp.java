@@ -3,6 +3,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 
 public class BookMyStayApp {
 
@@ -84,7 +86,6 @@ public class BookMyStayApp {
 
         BookingRequestQueue requestQueue = new BookingRequestQueue();
 
-        // Add sample requests
         requestQueue.addRequest(new Reservation("Amit", "Single Room"));
         requestQueue.addRequest(new Reservation("John", "Suite Room"));
         requestQueue.addRequest(new Reservation("Priya", "Double Room"));
@@ -104,10 +105,38 @@ public class BookMyStayApp {
         RoomAllocationService allocationService =
                 new RoomAllocationService(inventory);
 
-        allocationService.processAllRequests(requestQueue);
+        List<String> allocatedReservationIDs = allocationService.processAllRequests(requestQueue);
 
         System.out.println("\nFinal Inventory After Allocation:");
         inventory.displayInventory();
+
+
+        // -----------------------------------------------------------
+        //          USE CASE 7: ADD-ON SERVICE SELECTION
+        // -----------------------------------------------------------
+
+        System.out.println("\n============================================");
+        System.out.println("      Use Case 7: Add-On Service Selection  ");
+        System.out.println("============================================");
+        System.out.println("Guests may now choose optional services.\n");
+
+        AddOnServiceManager addOnManager = new AddOnServiceManager();
+
+        // Sample add-on services
+        AddOnService breakfast = new AddOnService("Breakfast Buffet", 499);
+        AddOnService airportPickup = new AddOnService("Airport Pickup", 999);
+        AddOnService spa = new AddOnService("Spa Access", 1499);
+
+        // Attach services to the first two reservations (demo)
+        if (allocatedReservationIDs.size() >= 2) {
+            addOnManager.addService(allocatedReservationIDs.get(0), breakfast);
+            addOnManager.addService(allocatedReservationIDs.get(0), spa);
+
+            addOnManager.addService(allocatedReservationIDs.get(1), airportPickup);
+        }
+
+        // Show the report
+        addOnManager.printServiceReport();
     }
 }
 
@@ -265,17 +294,16 @@ class RoomAllocationService {
 
     private RoomInventory inventoryRef;
 
-    // Set ensures room IDs remain unique
     private Set<String> allocatedRoomIDs = new HashSet<>();
-
-    // Map room types to their allocated room IDs
     private HashMap<String, Set<String>> allocationMap = new HashMap<>();
 
     public RoomAllocationService(RoomInventory inventoryRef) {
         this.inventoryRef = inventoryRef;
     }
 
-    public void processAllRequests(BookingRequestQueue queue) {
+    public List<String> processAllRequests(BookingRequestQueue queue) {
+
+        List<String> reservationIDs = new ArrayList<>();
 
         System.out.println("Processing Booking Requests...\n");
 
@@ -285,27 +313,27 @@ class RoomAllocationService {
             System.out.println("Processing -> " + r.guestName + " (" + r.requestedRoomType + ")");
 
             if (inventoryRef.getAvailability(r.requestedRoomType) == 0) {
-                System.out.println("❌ No rooms available for " + r.requestedRoomType);
+                System.out.println("No rooms available for " + r.requestedRoomType);
                 continue;
             }
 
-            // Generate a UNIQUE room ID
             String roomID = generateUniqueRoomID(r.requestedRoomType);
 
-            // Record room assignment
             allocatedRoomIDs.add(roomID);
 
             allocationMap.putIfAbsent(r.requestedRoomType, new HashSet<>());
             allocationMap.get(r.requestedRoomType).add(roomID);
 
-            // Update inventory
             inventoryRef.decrement(r.requestedRoomType);
 
             System.out.println("✔ Reservation Confirmed!");
             System.out.println("Assigned Room ID: " + roomID + "\n");
+
+            reservationIDs.add(roomID);
         }
 
         printAllocationSummary();
+        return reservationIDs;
     }
 
     private String generateUniqueRoomID(String roomType) {
@@ -325,5 +353,54 @@ class RoomAllocationService {
         }
 
         System.out.println("======================================\n");
+    }
+}
+
+// ================= USE CASE 7: ADD-ON SERVICES =================
+
+class AddOnService {
+    String serviceName;
+    double cost;
+
+    public AddOnService(String serviceName, double cost) {
+        this.serviceName = serviceName;
+        this.cost = cost;
+    }
+}
+
+class AddOnServiceManager {
+
+    private HashMap<String, List<AddOnService>> serviceMap = new HashMap<>();
+
+    public void addService(String reservationID, AddOnService service) {
+        serviceMap.putIfAbsent(reservationID, new ArrayList<>());
+        serviceMap.get(reservationID).add(service);
+
+        System.out.println("Added service '" + service.serviceName +
+                "' to Reservation " + reservationID);
+    }
+
+    public void printServiceReport() {
+
+        System.out.println("\n============ Add-On Services Report ============");
+
+        if (serviceMap.isEmpty()) {
+            System.out.println("No add-on services selected.");
+            return;
+        }
+
+        for (String reservationID : serviceMap.keySet()) {
+            System.out.println("\nReservation ID: " + reservationID);
+            double total = 0;
+
+            for (AddOnService s : serviceMap.get(reservationID)) {
+                System.out.println(" - " + s.serviceName + " : ₹" + s.cost);
+                total += s.cost;
+            }
+
+            System.out.println("Total Add-On Cost: ₹" + total);
+        }
+
+        System.out.println("=================================================\n");
     }
 }
