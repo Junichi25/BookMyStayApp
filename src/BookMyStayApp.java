@@ -55,6 +55,25 @@ public class BookMyStayApp {
 
         // Display inventory
         inventory.displayInventory();
+
+        // -----------------------------------------------------------
+        //              USE CASE 4: ROOM SEARCH (READ-ONLY)
+        // -----------------------------------------------------------
+
+        System.out.println("\n============================================");
+        System.out.println("      Use Case 4: Room Search & Lookup      ");
+        System.out.println("============================================\n");
+
+        RoomSearchService searchService = new RoomSearchService(inventory);
+
+        // Map room objects to names
+        HashMap<String, Room> roomModels = new HashMap<>();
+        roomModels.put("Single Room", single);
+        roomModels.put("Double Room", doubleRoom);
+        roomModels.put("Suite Room", suiteRoom);
+
+        // Perform search
+        searchService.displayAvailableRooms(roomModels);
     }
 }
 
@@ -74,7 +93,7 @@ abstract class Room {
     public void displayRoomDetails() {
         System.out.println("Beds: " + numberOfBeds);
         System.out.println("Size: " + squareFeet + " sqft");
-        System.out.println("Price per night: " + pricePerNight);
+        System.out.println("Price per night: ₹" + pricePerNight);
     }
 }
 
@@ -127,5 +146,42 @@ class RoomInventory {
         for (String roomType : inventory.keySet()) {
             System.out.println(roomType + " -> Available: " + inventory.get(roomType));
         }
+    }
+}
+
+// ================= USE CASE 4: ROOM SEARCH SERVICE =================
+
+/**
+ * Version 4.0 - Read-only room lookup
+ */
+class RoomSearchService {
+
+    private RoomInventory inventoryRef;
+
+    public RoomSearchService(RoomInventory inventoryRef) {
+        this.inventoryRef = inventoryRef;
+    }
+
+    /**
+     * Displays only available rooms.
+     * Does NOT modify inventory. (READ-ONLY OPERATION)
+     */
+    public void displayAvailableRooms(HashMap<String, Room> roomModels) {
+
+        System.out.println("Searching available rooms...");
+        System.out.println("--------------------------------------");
+
+        for (String roomType : roomModels.keySet()) {
+
+            int available = inventoryRef.getAvailability(roomType);
+
+            if (available > 0) {
+                System.out.println("\nRoom Type: " + roomType);
+                roomModels.get(roomType).displayRoomDetails();
+                System.out.println("Available: " + available);
+            }
+        }
+
+        System.out.println("\nSearch completed. No inventory changed.\n");
     }
 }
