@@ -75,7 +75,6 @@ public class BookMyStayApp {
 
         searchService.displayAvailableRooms(roomModels);
 
-
         // -----------------------------------------------------------
         //                 USE CASE 5: BOOKING REQUEST QUEUE
         // -----------------------------------------------------------
@@ -93,7 +92,6 @@ public class BookMyStayApp {
 
         requestQueue.displayQueue();
 
-
         // -----------------------------------------------------------
         //          USE CASE 6: ROOM ALLOCATION & CONFIRMATION
         // -----------------------------------------------------------
@@ -102,14 +100,14 @@ public class BookMyStayApp {
         System.out.println(" Use Case 6: Reservation Confirmation & Room Allocation ");
         System.out.println("============================================\n");
 
+        BookingHistory bookingHistory = new BookingHistory();
         RoomAllocationService allocationService =
-                new RoomAllocationService(inventory);
+                new RoomAllocationService(inventory, bookingHistory);
 
         List<String> allocatedReservationIDs = allocationService.processAllRequests(requestQueue);
 
         System.out.println("\nFinal Inventory After Allocation:");
         inventory.displayInventory();
-
 
         // -----------------------------------------------------------
         //          USE CASE 7: ADD-ON SERVICE SELECTION
@@ -122,21 +120,30 @@ public class BookMyStayApp {
 
         AddOnServiceManager addOnManager = new AddOnServiceManager();
 
-        // Sample add-on services
         AddOnService breakfast = new AddOnService("Breakfast Buffet", 499);
         AddOnService airportPickup = new AddOnService("Airport Pickup", 999);
         AddOnService spa = new AddOnService("Spa Access", 1499);
 
-        // Attach services to the first two reservations (demo)
         if (allocatedReservationIDs.size() >= 2) {
             addOnManager.addService(allocatedReservationIDs.get(0), breakfast);
             addOnManager.addService(allocatedReservationIDs.get(0), spa);
-
             addOnManager.addService(allocatedReservationIDs.get(1), airportPickup);
         }
 
-        // Show the report
         addOnManager.printServiceReport();
+
+        // -----------------------------------------------------------
+        //          USE CASE 8: BOOKING HISTORY & REPORTING
+        // -----------------------------------------------------------
+
+        System.out.println("\n============================================");
+        System.out.println("     Use Case 8: Booking History & Reports  ");
+        System.out.println("============================================\n");
+
+        BookingReportService reportService = new BookingReportService(bookingHistory);
+
+        reportService.printBookingHistory();
+        reportService.printSummaryReport();
     }
 }
 
@@ -161,24 +168,18 @@ abstract class Room {
 }
 
 class SingleRoom extends Room {
-    public SingleRoom() {
-        super(1, 250, 1500.0);
-    }
+    public SingleRoom() { super(1, 250, 1500.0); }
 }
 
 class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super(2, 400, 2500.0);
-    }
+    public DoubleRoom() { super(2, 400, 2500.0); }
 }
 
 class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super(3, 750, 5000.0);
-    }
+    public SuiteRoom() { super(3, 750, 5000.0); }
 }
 
-// ================= INVENTORY CLASS (USE CASE 3) =================
+// ================= INVENTORY CLASS =================
 
 class RoomInventory {
 
@@ -210,7 +211,7 @@ class RoomInventory {
     }
 }
 
-// ================= USE CASE 4: ROOM SEARCH SERVICE =================
+// ================= ROOM SEARCH (USE CASE 4) =================
 
 class RoomSearchService {
 
@@ -236,7 +237,7 @@ class RoomSearchService {
             }
         }
 
-        System.out.println("\nSearch completed. No inventory changed.\n");
+        System.out.println("\nSearch completed.\n");
     }
 }
 
@@ -245,6 +246,7 @@ class RoomSearchService {
 class Reservation {
     String guestName;
     String requestedRoomType;
+    String assignedRoomID; // updated in UC8 for history
 
     public Reservation(String guestName, String requestedRoomType) {
         this.guestName = guestName;
@@ -265,13 +267,9 @@ class BookingRequestQueue {
         requestQueue.add(r);
     }
 
-    public Reservation getNext() {
-        return requestQueue.poll(); // FIFO
-    }
+    public Reservation getNext() { return requestQueue.poll(); }
 
-    public boolean isEmpty() {
-        return requestQueue.isEmpty();
-    }
+    public boolean isEmpty() { return requestQueue.isEmpty(); }
 
     public void displayQueue() {
         System.out.println("\nCurrent Booking Requests (FIFO):");
@@ -293,12 +291,14 @@ class BookingRequestQueue {
 class RoomAllocationService {
 
     private RoomInventory inventoryRef;
+    private BookingHistory historyRef;
 
     private Set<String> allocatedRoomIDs = new HashSet<>();
     private HashMap<String, Set<String>> allocationMap = new HashMap<>();
 
-    public RoomAllocationService(RoomInventory inventoryRef) {
+    public RoomAllocationService(RoomInventory inventoryRef, BookingHistory historyRef) {
         this.inventoryRef = inventoryRef;
+        this.historyRef = historyRef;
     }
 
     public List<String> processAllRequests(BookingRequestQueue queue) {
@@ -313,7 +313,7 @@ class RoomAllocationService {
             System.out.println("Processing -> " + r.guestName + " (" + r.requestedRoomType + ")");
 
             if (inventoryRef.getAvailability(r.requestedRoomType) == 0) {
-                System.out.println("No rooms available for " + r.requestedRoomType);
+                System.out.println("❌ No rooms available for " + r.requestedRoomType);
                 continue;
             }
 
@@ -325,6 +325,9 @@ class RoomAllocationService {
             allocationMap.get(r.requestedRoomType).add(roomID);
 
             inventoryRef.decrement(r.requestedRoomType);
+
+            r.assignedRoomID = roomID;   // store for history
+            historyRef.addBooking(r);    // UC8: save into history
 
             System.out.println("✔ Reservation Confirmed!");
             System.out.println("Assigned Room ID: " + roomID + "\n");
@@ -400,6 +403,72 @@ class AddOnServiceManager {
 
             System.out.println("Total Add-On Cost: ₹" + total);
         }
+
+        System.out.println("=================================================\n");
+    }
+}
+
+// ================= USE CASE 8: BOOKING HISTORY =================
+
+class BookingHistory {
+
+    private List<Reservation> bookingList = new ArrayList<>();
+
+    public void addBooking(Reservation r) {
+        bookingList.add(r);
+    }
+
+    public List<Reservation> getHistory() {
+        return bookingList;
+    }
+}
+
+class BookingReportService {
+
+    private BookingHistory historyRef;
+
+    public BookingReportService(BookingHistory historyRef) {
+        this.historyRef = historyRef;
+    }
+
+    public void printBookingHistory() {
+
+        System.out.println("============ Booking History =============");
+
+        List<Reservation> list = historyRef.getHistory();
+
+        if (list.isEmpty()) {
+            System.out.println("No bookings found.");
+            return;
+        }
+
+        for (Reservation r : list) {
+            System.out.println("Guest: " + r.guestName +
+                    " | Room Type: " + r.requestedRoomType +
+                    " | Room ID: " + r.assignedRoomID);
+        }
+
+        System.out.println("==========================================\n");
+    }
+
+    public void printSummaryReport() {
+
+        System.out.println("============ Booking Summary Report =============");
+
+        List<Reservation> list = historyRef.getHistory();
+        System.out.println("Total Bookings: " + list.size());
+
+        int single = 0, dbl = 0, suite = 0;
+
+        for (Reservation r : list) {
+            if (r.requestedRoomType.equals("Single Room")) single++;
+            else if (r.requestedRoomType.equals("Double Room")) dbl++;
+            else if (r.requestedRoomType.equals("Suite Room")) suite++;
+        }
+
+        System.out.println("Single Rooms Booked: " + single);
+        System.out.println("Double Rooms Booked: " + dbl);
+        System.out.println("Suite Rooms Booked: " + suite);
 
         System.out.println("=================================================\n");
     }
