@@ -1,11 +1,5 @@
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Stack;
+import java.util.*;
+import java.io.*;
 
 /* ===============================================================
                      MAIN APPLICATION
@@ -21,17 +15,38 @@ public class BookMyStayApp {
         System.out.println("System initialized successfully.");
         System.out.println("Application ready for operations...\n");
 
+        // ===========================================================
+        //       USE CASE 12: LOAD PERSISTED SYSTEM STATE (RECOVERY)
+        // ===========================================================
+
+        System.out.println("\n============================================");
+        System.out.println("   Use Case 12: System Recovery on Startup  ");
+        System.out.println("============================================\n");
+
+        PersistenceService persistence = new PersistenceService();
+
+        RoomInventory inventory = persistence.loadInventory();
+        BookingHistory bookingHistory = persistence.loadHistory();
+
+        if (inventory == null) {
+            System.out.println("No saved inventory found. Initializing fresh data...\n");
+            inventory = new RoomInventory();
+            inventory.addRoomType("Single Room", 5);
+            inventory.addRoomType("Double Room", 3);
+            inventory.addRoomType("Suite Room", 2);
+        }
+
+        if (bookingHistory == null) {
+            System.out.println("No saved booking history found. Initializing fresh history...\n");
+            bookingHistory = new BookingHistory();
+        }
+
         // ---------- USE CASE 2 ----------
         System.out.println("Use Case 2: Basic Room Types & Static Availability\n");
 
         SingleRoom single = new SingleRoom();
         DoubleRoom doubleRoom = new DoubleRoom();
         SuiteRoom suiteRoom = new SuiteRoom();
-
-        RoomInventory inventory = new RoomInventory();
-        inventory.addRoomType("Single Room", 5);
-        inventory.addRoomType("Double Room", 3);
-        inventory.addRoomType("Suite Room", 2);
 
         // ---------- USE CASE 4 ----------
         System.out.println("\n============================================");
@@ -71,7 +86,6 @@ public class BookMyStayApp {
         System.out.println(" Use Case 6: Reservation Confirmation & Room Allocation ");
         System.out.println("============================================\n");
 
-        BookingHistory bookingHistory = new BookingHistory();
         RoomAllocationService allocationService =
                 new RoomAllocationService(inventory, bookingHistory);
 
@@ -133,7 +147,6 @@ public class BookMyStayApp {
         System.out.println("\nUpdated Booking History:");
         reportService.printBookingHistory();
 
-
         // ===========================================================
         //                USE CASE 11: CONCURRENCY
         // ===========================================================
@@ -175,6 +188,20 @@ public class BookMyStayApp {
 
         System.out.println("\nFinal Inventory After Concurrent Allocation:");
         sharedInventory.displayInventory();
+
+
+        // ===========================================================
+        //        USE CASE 12: SAVE SYSTEM STATE ON SHUTDOWN
+        // ===========================================================
+
+        System.out.println("\n============================================");
+        System.out.println("   Use Case 12: Saving System State Safely  ");
+        System.out.println("============================================\n");
+
+        persistence.saveInventory(inventory);
+        persistence.saveHistory(bookingHistory);
+
+        System.out.println("System state saved successfully. Safe to shutdown.\n");
     }
 }
 
@@ -279,7 +306,9 @@ class SuiteRoom  extends Room { public SuiteRoom()  { super(3, 750, 5000);} }
                   INVENTORY (updated)
    =============================================================== */
 
-class RoomInventory {
+class RoomInventory implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private HashMap<String, Integer> inventory = new HashMap<>();
 
@@ -312,6 +341,8 @@ class RoomInventory {
         }
         System.out.println("-------------------------\n");
     }
+
+    public HashMap<String,Integer> getAll() { return inventory; }
 }
 
 /* ===============================================================
@@ -350,7 +381,9 @@ class RoomSearchService {
                   USE CASE 5: REQUEST QUEUE
    =============================================================== */
 
-class Reservation {
+class Reservation implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     String guestName;
     String requestedRoomType;
@@ -489,7 +522,9 @@ class AddOnServiceManager {
            USE CASE 8: BOOKING HISTORY & REPORTS
    =============================================================== */
 
-class BookingHistory {
+class BookingHistory implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private List<Reservation> bookings = new ArrayList<>();
 
@@ -583,5 +618,69 @@ class BookingCancellationService {
         history.removeBooking(r);
 
         System.out.println("Cancelled booking for Room ID: " + roomID);
+    }
+}
+
+/* ===============================================================
+      USE CASE 12: DATA PERSISTENCE & SYSTEM RECOVERY
+   =============================================================== */
+
+class PersistenceService {
+
+    private final String INVENTORY_FILE = "inventory.dat";
+    private final String HISTORY_FILE   = "history.dat";
+
+    /* ------------------ SAVE METHODS ------------------ */
+
+    public void saveInventory(RoomInventory inv) {
+        try (ObjectOutputStream oos =
+                     new ObjectOutputStream(new FileOutputStream(INVENTORY_FILE))) {
+
+            oos.writeObject(inv);
+            System.out.println("Inventory saved.");
+
+        } catch (Exception ex) {
+            System.out.println("Error saving inventory: " + ex.getMessage());
+        }
+    }
+
+    public void saveHistory(BookingHistory hist) {
+        try (ObjectOutputStream oos =
+                     new ObjectOutputStream(new FileOutputStream(HISTORY_FILE))) {
+
+            oos.writeObject(hist);
+            System.out.println("Booking history saved.");
+
+        } catch (Exception ex) {
+            System.out.println("Error saving booking history: " + ex.getMessage());
+        }
+    }
+
+    /* ------------------ LOAD METHODS ------------------ */
+
+    public RoomInventory loadInventory() {
+        try (ObjectInputStream ois =
+                     new ObjectInputStream(new FileInputStream(INVENTORY_FILE))) {
+
+            System.out.println("Recovered saved inventory from file.\n");
+            return (RoomInventory) ois.readObject();
+
+        } catch (Exception ex) {
+            System.out.println("No previous inventory found.");
+            return null;
+        }
+    }
+
+    public BookingHistory loadHistory() {
+        try (ObjectInputStream ois =
+                     new ObjectInputStream(new FileInputStream(HISTORY_FILE))) {
+
+            System.out.println("Recovered saved booking history from file.\n");
+            return (BookingHistory) ois.readObject();
+
+        } catch (Exception ex) {
+            System.out.println("No previous booking history found.");
+            return null;
+        }
     }
 }
