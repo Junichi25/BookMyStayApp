@@ -1,3 +1,5 @@
+import java.util.HashMap;
+
 public class BookMyStayApp {
 
     public static void main(String[] args) {
@@ -35,6 +37,24 @@ public class BookMyStayApp {
         System.out.println("\nSuite Room:");
         suiteRoom.displayRoomDetails();
         System.out.println("Available: " + suiteRoomAvailable);
+
+        // -----------------------------------------------------------
+        //              USE CASE 3: CENTRALIZED INVENTORY
+        // -----------------------------------------------------------
+
+        System.out.println("\n============================================");
+        System.out.println("     Use Case 3: Centralized Inventory      ");
+        System.out.println("============================================\n");
+
+        RoomInventory inventory = new RoomInventory();
+
+        // Register room inventory
+        inventory.addRoomType("Single Room", 5);
+        inventory.addRoomType("Double Room", 3);
+        inventory.addRoomType("Suite Room", 2);
+
+        // Display inventory
+        inventory.displayInventory();
     }
 }
 
@@ -73,5 +93,39 @@ class DoubleRoom extends Room {
 class SuiteRoom extends Room {
     public SuiteRoom() {
         super(3, 750, 5000.0);
+    }
+}
+
+// ================= INVENTORY CLASS (USE CASE 3) =================
+
+/**
+ * Version 3.0 - Centralized inventory using HashMap
+ */
+class RoomInventory {
+
+    private HashMap<String, Integer> inventory;
+
+    public RoomInventory() {
+        inventory = new HashMap<>();
+    }
+
+    // Add or update availability
+    public void addRoomType(String roomType, int availableCount) {
+        inventory.put(roomType, availableCount);
+    }
+
+    // Retrieve availability
+    public int getAvailability(String roomType) {
+        return inventory.getOrDefault(roomType, 0);
+    }
+
+    // Display current inventory state
+    public void displayInventory() {
+        System.out.println("Centralized Inventory (HashMap Based):");
+        System.out.println("--------------------------------------");
+
+        for (String roomType : inventory.keySet()) {
+            System.out.println(roomType + " -> Available: " + inventory.get(roomType));
+        }
     }
 }
