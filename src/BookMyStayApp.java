@@ -1,4 +1,6 @@
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class BookMyStayApp {
 
@@ -74,6 +76,29 @@ public class BookMyStayApp {
 
         // Perform search
         searchService.displayAvailableRooms(roomModels);
+
+
+        // -----------------------------------------------------------
+        //                 USE CASE 5: BOOKING REQUEST QUEUE
+        // -----------------------------------------------------------
+
+        System.out.println("\n============================================");
+        System.out.println("   Use Case 5: Booking Request (FCFS Queue)  ");
+        System.out.println("============================================\n");
+
+        BookingRequestQueue requestQueue = new BookingRequestQueue();
+
+        // Add simulated booking requests
+        requestQueue.addRequest(new Reservation("Amit", "Single Room"));
+        requestQueue.addRequest(new Reservation("John", "Suite Room"));
+        requestQueue.addRequest(new Reservation("Priya", "Double Room"));
+        requestQueue.addRequest(new Reservation("Rahul", "Single Room"));
+
+        // Display queue state
+        requestQueue.displayQueue();
+
+        System.out.println("\nBooking requests stored successfully.");
+        System.out.println("No allocation performed. Ready for Use Case 6.\n");
     }
 }
 
@@ -183,5 +208,50 @@ class RoomSearchService {
         }
 
         System.out.println("\nSearch completed. No inventory changed.\n");
+    }
+}
+
+
+// ================= USE CASE 5: BOOKING REQUEST QUEUE =================
+
+class Reservation {
+    String guestName;
+    String requestedRoomType;
+
+    public Reservation(String guestName, String requestedRoomType) {
+        this.guestName = guestName;
+        this.requestedRoomType = requestedRoomType;
+    }
+
+    public void display() {
+        System.out.println("Guest: " + guestName + " | Room Requested: " + requestedRoomType);
+    }
+}
+
+class BookingRequestQueue {
+
+    private Queue<Reservation> requestQueue;
+
+    public BookingRequestQueue() {
+        requestQueue = new LinkedList<>();
+    }
+
+    public void addRequest(Reservation r) {
+        System.out.println("Request added -> " + r.guestName + " (" + r.requestedRoomType + ")");
+        requestQueue.add(r);
+    }
+
+    public void displayQueue() {
+        System.out.println("\nCurrent Booking Request Queue (FCFS):");
+        System.out.println("--------------------------------------");
+
+        if (requestQueue.isEmpty()) {
+            System.out.println("No requests in the queue.");
+            return;
+        }
+
+        for (Reservation r : requestQueue) {
+            r.display();
+        }
     }
 }
